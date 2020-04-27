@@ -29,12 +29,13 @@ public class RasConnection implements InvocationHandler {
                 return method.invoke(this, params);
             }
 
-        //    System.out.println("EXECUTED: " + method.getName());
+            System.out.println("EXECUTED: " + method.getName());
 
             if ("close".equals(method.getName())) {
-                System.out.println("close invoked");
+//todo session detach/destroy
                 return method.invoke(connection, params);
-            } else {
+            }
+            else {
                 return method.invoke(connection, params);
             }
         } catch (Throwable t) {

@@ -8,35 +8,29 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import java.sql.SQLException;
 @Configuration
-public class DataSourceConfig {
-//    @Primary
-//    @Bean
-//    @ConfigurationProperties("app.datasource")
-//    public DataSourceProperties dataSourceProperties() {
-//        return new DataSourceProperties();
-//    }
-//    @Primary
-//    @Bean(destroyMethod = "close", name = "dataSource")
-//    @ConfigurationProperties("app.datasource")
-//    public HikariDataSource dataSource(DataSourceProperties properties) {
-//        return properties.initializeDataSourceBuilder().type(HikariDataSource.class)
-//                .build();
-//    }
+@EnableTransactionManagement
+//@EnableJpaRepositories(
+ //       entityManagerFactoryRef = "rasEntityManagerFactory", basePackages = {
+ //       "ru.sbrf.lab.repository", "ru.sbrf.lab.datasource"})
 
+public class DataSourceConfig {
+    @Primary
+    @Bean
+    @ConfigurationProperties("ras.datasource")
+    public DataSourceProperties dataSourceProperties() {
+        return new DataSourceProperties();
+    }
     @Primary
     @Bean(destroyMethod = "close", name = "dataSource")
-
-    public HikariDataSource dataSource() throws SQLException {
-        RasDataSource dataSource = new RasDataSource();
-        dataSource.setUsername("apl_security");
-        dataSource.setPassword("schemapas");
-        dataSource.setJdbcUrl("jdbc:oracle:thin:@localhost:1521/aplcore");
-        HikariConfig config = new HikariConfig();
-        config.setDataSource(dataSource);
-        config.setPoolName("MY_POOL");
-        return new HikariDataSource(config);
+    @ConfigurationProperties("ras.datasource")
+    public RasDataSource dataSource(DataSourceProperties properties) {
+//todo session attach
+        return properties.initializeDataSourceBuilder().type(RasDataSource.class)
+                .build();
     }
 }
