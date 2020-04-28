@@ -17,8 +17,19 @@ public class User {
     String first_name;
     @Column (name = "last_name")
     String last_name;
+    @Column (name = "patronymic")
+    String patronymic;
+
+    public String getPatronymic() {
+        return patronymic;
+    }
+
+    public void setPatronymic(String patronymic) {
+        this.patronymic = patronymic;
+    }
 
     public User(){}
+
     public User(Long id, String sber_pdi, String ora_sau, String first_name, String last_name)
     {
         this.id = id;
