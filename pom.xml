@@ -7,6 +7,11 @@
     <groupId>ru.sbrf.lab</groupId>
     <artifactId>RasDataSource</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.2.5.RELEASE</version>
+    </parent>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -57,8 +62,17 @@
             <artifactId>xs</artifactId>
             <version>LATEST</version>
         </dependency>
+        <dependency>
+            <groupId>com.oracle.ras</groupId>
+            <artifactId>xsee</artifactId>
+            <version>LATEST</version>
+        </dependency>
 
-
+        <!--<dependency>-->
+            <!--<groupId>com.github.gavlyukovskiy</groupId>-->
+            <!--<artifactId>datasource-proxy-spring-boot-starter</artifactId>-->
+            <!--<version>1.6.1</version>-->
+        <!--</dependency>-->
 
 
         <!--        <dependency>

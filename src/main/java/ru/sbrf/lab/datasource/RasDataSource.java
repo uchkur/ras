@@ -91,7 +91,7 @@ public class RasDataSource extends HikariDataSource {
             this.currentSession =
                     xsSessionManager.createSession (rasConnection.unwrap(OracleConnection.class)
 //todo                            , SecurityContextHolder.getContext().getAuthentication().getName()
-                            , "TITOV_RV"
+                            , "TITOV_RVs"
                             , null
                             , null
                     );
@@ -108,7 +108,7 @@ public class RasDataSource extends HikariDataSource {
     }
 
   //  @Bean
-   // @Override
+    @Override
     public Connection getConnection() throws SQLException {
         Connection conn = super.getConnection();
         Connection rasConnection = RasConnection.newInstance(conn);
@@ -116,7 +116,7 @@ public class RasDataSource extends HikariDataSource {
         return rasConnection; //proxy
     }
 //    @Bean
-    //@Override
+    @Override
     public Connection getConnection(String user, String pass) throws SQLException {
         Connection conn = super.getConnection(user, pass);
         Connection rasConnection = RasConnection.newInstance(conn);

@@ -7,10 +7,12 @@ import oracle.security.xs.XSSessionManager;
 import org.aspectj.lang.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.data.jdbc.support.ConnectionUsernameProvider;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import ru.sbrf.lab.filters.SudirAuthFilter;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -26,9 +28,20 @@ import java.sql.SQLException;
 @Aspect
 @Component
 public class OracleConnectionPrepareAdvice {
+    @Autowired
+    SudirAuthFilter sudirAuthFilter;
 
     private Connection managerConnection = null;
     private XSSessionManager xsSessionManager = null;
+
+//@Bean
+    public Session getCurrentSession() {
+        return currentSession;
+    }
+
+    public void setCurrentSession(Session currentSession) {
+        this.currentSession = currentSession;
+    }
 
     private Session currentSession;
 
@@ -45,7 +58,7 @@ public class OracleConnectionPrepareAdvice {
 //
 //    void afterEvidenceConnection(Connection connection) {
 //        System.out.println("closed");
-//        String prepString = String.format("{ call DBMS_SESSION.SET_IDENTIFIER('%s') }", contextProvider.getUserName());
+//        String prepString = String.format("{ call DBMS_SESSION.SET_IDENTIFIER('%s') }", contextProvidergetUserName());
 //        CallableStatement cs = connection.prepareCall(prepString);
 //        cs.execute();
 //        cs.close();
@@ -66,6 +79,8 @@ public class OracleConnectionPrepareAdvice {
             String.format("{ call DBMS_SESSION.SET_IDENTIFIER('%s') }"
                 , currentUserName );
         createSession(connection, currentUserName);
+        sudirAuthFilter.xsSessionManager = xsSessionManager;
+        sudirAuthFilter.appConnection = connection.unwrap(OracleConnection.class);
         CallableStatement cs = connection.prepareCall(prepString);
         cs.execute();
         cs.close();
@@ -96,13 +111,16 @@ public class OracleConnectionPrepareAdvice {
             }
             xsSessionManager.attachSession(rasConnection.unwrap(OracleConnection.class),
                     this.currentSession, null, null, null, null);
+            sudirAuthFilter.currentSession = this.currentSession;
+
 //todo make handler
         } catch (SQLException
                 | XSException
                 | NoSuchAlgorithmException
                 | InvalidKeyException
                 | InvalidKeySpecException
-                | InvalidAlgorithmParameterException e)
+                | InvalidAlgorithmParameterException
+         e)
         {
             try {
                 if (!(this.currentSession == null) && !(this.xsSessionManager == null)) {
