@@ -133,8 +133,10 @@ public class OracleConnectionPrepareAdvice {
                     null, null);
             sudirAuthFilter.currentSession = this.currentSession;
             sudirAuthFilter.setJsessionid(sudirAuthFilter.getJsessionid());
+            sudirAuthFilter.managerConnection = this.managerConnection;
+            managerConnection.close();
 //            xsSessionManager.setCookie(this.currentSession, this.sudirAuthFilter.jsessionid);
-            System.out.println(currentSession.isAttached());
+            System.out.println("debug 2 - session is attached?:" + currentSession.isAttached());
 
 //todo make handler
         } catch (SQLException
