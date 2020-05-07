@@ -5,6 +5,7 @@ import oracle.security.xs.Session;
 import oracle.security.xs.XSException;
 import oracle.security.xs.XSSessionManager;
 import org.aspectj.lang.annotation.*;
+import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.data.jdbc.support.ConnectionUsernameProvider;
 import org.springframework.context.annotation.Bean;
@@ -34,7 +35,7 @@ public class OracleConnectionPrepareAdvice {
     private Connection managerConnection = null;
     private XSSessionManager xsSessionManager = null;
 
-//@Bean
+    //@Bean
     public Session getCurrentSession() {
         return currentSession;
     }
@@ -48,11 +49,21 @@ public class OracleConnectionPrepareAdvice {
 //    @Autowired
 //    private ConnectionUsernameProvider contextProvider;
 
-    //    @AfterReturning(pointcut = "execution(* * (..))")
-    public void logAroundAllMethods(){
-        System.out.println("logit");
-    }
-//    @Pointcut("execution(* com.zaxxer.hikari.HikariDataSource.evictConnection(..))")
+//    @AfterReturning(pointcut = "execution(* javax.sql.DataSource.* (..))")
+//    void closeConnectionPointcut() {
+//        try {
+//            this.xsSessionManager.destroySession(this.managerConnection, this.currentSession);
+//            System.out.println("closeeeeeee");
+//        } catch (XSException | SQLException e) {
+//            System.out.println(e.getMessage());
+//        }
+//    }
+
+    ;
+//    public void logAroundAllMethods(){
+//        System.out.println("logit");
+//    }
+//    @Pointcut("execution(* com.zaxxer.hikari.HikariDataSource.close(..))")
 //    void beforeEvictConnectionPointcut() {};
 //    @AfterReturning(pointcut = "beforeEvictConnectionPointcut()")
 //
@@ -65,19 +76,23 @@ public class OracleConnectionPrepareAdvice {
 //    }
 
     @Pointcut("execution(* javax.sql.DataSource.getConnection(..))")
-    void prepareConnectionPointcut() {};
-    @AfterReturning(pointcut="prepareConnectionPointcut()", returning = "connection")
-    void afterPrepareConnection(Connection connection)  throws SQLException {
+    void prepareConnectionPointcut() {
+    }
+
+    ;
+
+    @AfterReturning(pointcut = "prepareConnectionPointcut()", returning = "connection")
+    void afterPrepareConnection(Connection connection) throws SQLException {
 //        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
         String currentUserName = "anonymous";
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (!(authentication==null))
-        if (!(authentication instanceof AnonymousAuthenticationToken)) {
-             currentUserName = authentication.getName();
-        }
+        if (!(authentication == null))
+            if (!(authentication instanceof AnonymousAuthenticationToken)) {
+                currentUserName = authentication.getName();
+            }
         String prepString =
-            String.format("{ call DBMS_SESSION.SET_IDENTIFIER('%s') }"
-                , currentUserName );
+                String.format("{ call DBMS_SESSION.SET_IDENTIFIER('%s') }"
+                        , currentUserName);
         createSession(connection, currentUserName);
         sudirAuthFilter.xsSessionManager = xsSessionManager;
         sudirAuthFilter.appConnection = connection.unwrap(OracleConnection.class);
@@ -86,32 +101,40 @@ public class OracleConnectionPrepareAdvice {
         cs.close();
     }
 
-    private void createSession (Connection rasConnection, String user) throws SQLException
-    {
+    private void createSession(Connection rasConnection, String user) throws SQLException {
         if (rasConnection.isClosed()) return;
         try {
             Connection managerConnection = DriverManager.getConnection(
                     "jdbc:oracle:thin:@localhost:1521/aplcore"
-                        , "sec_dispatcher"
-                        , "secdispatcherpass");
+                    , "sec_dispatcher"
+                    , "secdispatcherpass");
             xsSessionManager = XSSessionManager.getSessionManager(managerConnection, 30, 8000000);
-            if (user.equals("anonymous"))
-            {
-                this.currentSession = xsSessionManager.createAnonymousSession(
-                        rasConnection.unwrap(OracleConnection.class),
-                            null, null);
+            if (user.equals("anonymous")) {
+                if (sudirAuthFilter.getJsessionid() == null) {
+                    sudirAuthFilter.setJsessionid("anonymous" + System.currentTimeMillis());
+                    this.currentSession = xsSessionManager.createAnonymousSession(
+                            rasConnection.unwrap(OracleConnection.class),
+                            sudirAuthFilter.getJsessionid(), null);
+                }
+            } else {
+                System.out.println("JSESSION - " + sudirAuthFilter.getJsessionid());
+                if (!sudirAuthFilter.isSecondCall(sudirAuthFilter.getJsessionid())) {
+                    this.currentSession =
+                            xsSessionManager.createSession(rasConnection.unwrap(OracleConnection.class)
+                                    , user
+                                    , sudirAuthFilter.getJsessionid()
+                                    , null
+                            );
+                }
             }
-            else {
-                this.currentSession =
-                        xsSessionManager.createSession(rasConnection.unwrap(OracleConnection.class)
-                                , user
-                                , null
-                                , null
-                        );
-            }
-            xsSessionManager.attachSession(rasConnection.unwrap(OracleConnection.class),
-                    this.currentSession, null, null, null, null);
+            xsSessionManager.attachSessionByCookie(rasConnection.unwrap(OracleConnection.class),
+                    sudirAuthFilter.getJsessionid(),
+                    null, null, null,
+                    null, null);
             sudirAuthFilter.currentSession = this.currentSession;
+            sudirAuthFilter.setJsessionid(sudirAuthFilter.getJsessionid());
+//            xsSessionManager.setCookie(this.currentSession, this.sudirAuthFilter.jsessionid);
+            System.out.println(currentSession.isAttached());
 
 //todo make handler
         } catch (SQLException
@@ -120,21 +143,22 @@ public class OracleConnectionPrepareAdvice {
                 | InvalidKeyException
                 | InvalidKeySpecException
                 | InvalidAlgorithmParameterException
-         e)
-        {
+                e) {
             try {
                 if (!(this.currentSession == null) && !(this.xsSessionManager == null)) {
                     xsSessionManager.detachSession(this.currentSession);
                 }
+            } catch (XSException ee) {
             }
-            catch (XSException ee) {};
+            ;
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
             e.printStackTrace(pw);
             System.out.println(sw.toString());
         }
-   }
-
+    }
 }
+
+
 
 

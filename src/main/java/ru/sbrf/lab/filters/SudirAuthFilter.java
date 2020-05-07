@@ -1,34 +1,18 @@
 package ru.sbrf.lab.filters;
 
-import oracle.jdbc.driver.OracleConnection;
-import oracle.security.xs.NotAttachedException;
+
 import oracle.security.xs.Session;
 import oracle.security.xs.XSException;
 import oracle.security.xs.XSSessionManager;
 import oracle.security.xs.internal.SessionImpl;
-import org.hibernate.internal.util.xml.XsdException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
-import ru.sbrf.lab.security.APLSession;
-import ru.sbrf.lab.security.SudirAuthenticationProvider;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.*;
 import javax.servlet.FilterChain;
@@ -36,8 +20,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import static org.springframework.boot.context.properties.source.ConfigurationPropertyName.isValid;
+import javax.sql.ConnectionPoolDataSource;
 
 
 @Component
@@ -47,7 +30,28 @@ public class SudirAuthFilter extends OncePerRequestFilter {
     public Session currentSession;
     public XSSessionManager xsSessionManager;
     public Connection appConnection;
-    public String jsessionid;
+    private String jsessionid;
+    private String previousJSessionId;
+    private Set<String> jsessions = new HashSet<>();
+    private Set<Session> sessions = new HashSet<>();
+
+    public boolean isSecondCall(String jsessionid)
+    {
+        return  (jsessions.contains(jsessionid));
+    }
+
+    public String getJsessionid() {
+        return jsessionid;
+    }
+
+    public void setJsessionid(String jsessionid) {
+//        this.s;
+        this.jsessions.add(jsessionid);
+        this.sessions.add(this.currentSession);
+//        this.previousJSessionId = this.jsessionid;
+        this.jsessionid = jsessionid;
+    }
+
 
 //    private void createSession (String user) throws SQLException
 //    {
@@ -114,7 +118,8 @@ public class SudirAuthFilter extends OncePerRequestFilter {
         System.out.println("CONTEXT BEFORE:" + SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         try {
             //createSession(SecurityContextHolder.getContext().getAuthentication().getName());
-            System.out.println(currentSession.toString());
+            if (currentSession.isAttached())
+                System.out.println(currentSession.toString());
         }
         catch (Exception e) {
 
@@ -124,17 +129,50 @@ public class SudirAuthFilter extends OncePerRequestFilter {
             System.out.println(sw.toString());
 
         };
+
         filterChain.doFilter(request, response);
+
         System.out.println("CONTEXT AFTER:" + SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        try {
-            xsSessionManager.detachSession(currentSession);
-            System.out.println(currentSession.toString());
+//        sessions.forEach(session -> System.out.println(session.toString()));
+
+        Iterator<Session> it = sessions.iterator();
+        while (it.hasNext())
+        {
+            Session s = it.next();
+            if (!(s==null)) {
+                System.out.println("debug1 - " + ((SessionImpl) s).getSessionInfo().sessionCookie);
+                try {
+                    xsSessionManager.attachSession(this.appConnection,s, null, null,
+                    null, null);
+                    xsSessionManager.detachSession(s);
+                    xsSessionManager.destroySession(this.appConnection, s);
+            } catch (XSException|SQLException e) {System.out.println(e.getMessage());}
+            }
+            it.remove();
         }
-        catch (XSException|SQLException e) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            System.out.println(sw.toString());
+
+        for (Session s : sessions)
+        {
+            try {
+                if (!(s==null)) {
+                    System.out.println("debug1 - " + ((SessionImpl)s).getSessionInfo().sessionCookie);
+                    xsSessionManager.destroySession(this.appConnection, s);
+                    sessions.remove(s);
+                    if (s.isAttached()) {
+//                    xsSessionManager.detachSession(s);
+                        xsSessionManager.destroySession(this.appConnection, s);
+                        System.out.println(s.toString());
+                        sessions.remove(s);
+                        System.out.println(System.currentTimeMillis());
+                    }
+                }
+            }
+            catch (XSException|SQLException e) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                System.out.println(sw.toString());
+            }
         }
 
 //        if(isValid(xAuth) == false){
