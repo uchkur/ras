@@ -10,8 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.data.jdbc.support.ConnectionUsernameProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import ru.sbrf.lab.filters.SudirAuthFilter;
 
@@ -83,17 +85,17 @@ public class OracleConnectionPrepareAdvice {
 
     @AfterReturning(pointcut = "prepareConnectionPointcut()", returning = "connection")
     void afterPrepareConnection(Connection connection) throws SQLException {
-//        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
-        String currentUserName = "anonymous";
+        String sudirUserName = SecurityContextHolder.getContext().getAuthentication().getName();
+        String rasUserName = "anonymous";
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication == null))
             if (!(authentication instanceof AnonymousAuthenticationToken)) {
-                currentUserName = authentication.getName();
+                rasUserName = ((UserDetails)authentication.getPrincipal()).getPassword();
             }
         String prepString =
                 String.format("{ call DBMS_SESSION.SET_IDENTIFIER('%s') }"
-                        , currentUserName);
-        createSession(connection, currentUserName);
+                        , sudirUserName);
+        createSession(connection, rasUserName);
         sudirAuthFilter.xsSessionManager = xsSessionManager;
         sudirAuthFilter.appConnection = connection.unwrap(OracleConnection.class);
         CallableStatement cs = connection.prepareCall(prepString);

@@ -52,9 +52,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 //                .csrf().disable()
 //                .logout().disable();
         http
-        .authorizeRequests().anyRequest().authenticated()
-        .and()
-        .httpBasic()
+//        .sessionManagement()
+        .anonymous()
+//        .authorizeRequests().anyRequest()
+//        .authenticated()
+//        .and()
+//        .httpBasic()
 //        .authenticationEntryPoint(restAuthenticationEntryPoint);
         ;
         // @formatter:on
